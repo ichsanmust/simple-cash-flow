@@ -9,13 +9,14 @@ import {
   parseNumberFromDots,
 } from "../api/client";
 import { useToast } from "../components/Toast";
+import { formatLocalDate } from "../utils/date";
 
 export default function AddIncome() {
   const [categories, setCategories] = useState([]);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [formData, setFormData] = useState({
-    trx_date: new Date().toISOString().split("T")[0],
+    trx_date: formatLocalDate(),
     party: "",
     category_id: "",
     amount: "",

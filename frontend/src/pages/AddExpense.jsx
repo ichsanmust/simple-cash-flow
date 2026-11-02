@@ -18,6 +18,7 @@ import {
   parseNumberFromDots,
 } from "../api/client";
 import { useToast } from "../components/Toast";
+import { formatLocalDate } from "../utils/date";
 
 export default function AddExpense() {
   const [categories, setCategories] = useState([]);
@@ -29,7 +30,7 @@ export default function AddExpense() {
   const [draftData, setDraftData] = useState(null);
   const [activeModel, setActiveModel] = useState(null);
   const [formData, setFormData] = useState({
-    trx_date: new Date().toISOString().split("T")[0],
+    trx_date: formatLocalDate(),
     party: "",
     category_id: "",
     amount: "",
@@ -49,7 +50,7 @@ export default function AddExpense() {
     setPreviewUrl(null);
     setErrorMessage("");
     setFormData({
-      trx_date: new Date().toISOString().split("T")[0],
+      trx_date: formatLocalDate(),
       party: "",
       category_id: categories[0]?.id || "",
       amount: "",
@@ -112,7 +113,7 @@ export default function AddExpense() {
       const draft = await expensesApi.upload(fd);
       setDraftData(draft);
       setFormData({
-        trx_date: draft.trx_date || new Date().toISOString().split("T")[0],
+        trx_date: draft.trx_date || formatLocalDate(),
         party: draft.party?.trim() ? draft.party.trim() : "Lainnya - Periksa lagi Nanti",
         category_id: draft.category_id || (categories[0]?.id || ""),
         amount: draft.amount || "",

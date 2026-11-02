@@ -11,6 +11,7 @@ import {
 } from "../api/client";
 import { useToast } from "../components/Toast";
 import Modal from "../components/Modal";
+import { formatLocalDate } from "../utils/date";
 
 export default function Drafts() {
   const [drafts, setDrafts] = useState([]);
@@ -47,7 +48,7 @@ export default function Drafts() {
   const handleOpenReview = (draft) => {
     setSelectedDraft(draft);
     setEditForm({
-      trx_date: draft.trx_date || new Date().toISOString().split("T")[0],
+      trx_date: draft.trx_date || formatLocalDate(),
       party: draft.party?.trim() ? draft.party.trim() : "Lainnya - Periksa lagi Nanti",
       category_id: draft.category_id || (categories[0]?.id || ""),
       amount: draft.amount || "",

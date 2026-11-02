@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowDownCircle,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import SummaryCard from "../components/SummaryCard";
 import { categoriesApi, formatRupiah, reportsApi, transactionsApi } from "../api/client";
+import { getDateRange, formatReadableDate } from "../utils/date";
 
 const CATEGORY_STYLES = [
   { bar: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
@@ -33,26 +34,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper rentang tanggal
-  const getDateRange = (p) => {
-    const now = new Date();
-    if (p === "this_month") {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-      return { date_from: start, date_to: end };
+  const currentRange = getDateRange(period);
+  const periodLabel = useMemo(() => {
+    if (period === "all") return "Semua Waktu";
+    if (currentRange.date_from && currentRange.date_to) {
+      return `${formatReadableDate(currentRange.date_from)} – ${formatReadableDate(currentRange.date_to)}`;
     }
-    if (p === "last_month") {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
-      const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
-      return { date_from: start, date_to: end };
-    }
-    if (p === "this_year") {
-      const start = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
-      const end = new Date(now.getFullYear(), 11, 31).toISOString().split("T")[0];
-      return { date_from: start, date_to: end };
-    }
-    return {}; // Semua waktu
-  };
+    return "";
+  }, [period, currentRange.date_from, currentRange.date_to]);
 
   const loadData = async () => {
     setLoading(true);
@@ -98,7 +87,17 @@ export default function Dashboard() {
             </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Ringkasan Kas</h1>
-          <p className="text-sm text-slate-500 mt-1">Kelola aliran pendapatan, pengeluaran & saldo keuangan</p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-sm text-slate-500">Kelola aliran pendapatan, pengeluaran & saldo keuangan</p>
+            {periodLabel && (
+              <>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="text-xs font-semibold text-slate-700 bg-slate-100/90 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  {periodLabel}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-xs">
