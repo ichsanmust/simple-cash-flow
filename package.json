@@ -1,0 +1,18 @@
+{
+  "name": "simple-cash-flow",
+  "version": "1.0.0",
+  "description": "Simple Cashflow with AI Expense Extraction and Manual Income",
+  "private": true,
+  "scripts": {
+    "setup": "npm run setup:be && npm run setup:fe",
+    "setup:be": "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
+    "setup:fe": "npm --prefix frontend install",
+    "dev": "concurrently -n BE,FE -c blue,green \"npm:dev:be\" \"npm:dev:fe\"",
+    "dev:be": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "dev:fe": "npm --prefix frontend run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
+
