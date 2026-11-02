@@ -36,6 +36,7 @@ export async function apiRequest(endpoint, options = {}) {
     response = await fetch(url, {
       ...options,
       headers,
+      referrerPolicy: "no-referrer",
       signal: options.signal || controller.signal,
     });
   } catch (err) {
