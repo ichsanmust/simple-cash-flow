@@ -85,7 +85,7 @@ Cukup jalankan dari direktori root:
 npm run dev
 ```
 Perintah ini akan menyalakan:
-- **Backend FastAPI**: http://localhost:8000 (Dokumentasi API di `/docs`)
+- **Backend FastAPI**: http://localhost:8001 (Dokumentasi API di `/docs`)
 - **Frontend Web**: http://localhost:5173
 
 ---
@@ -134,7 +134,7 @@ Anda dapat mengintegrasikan **Hermes AI Agent** (atau bot otonom lainnya) yang b
 [Hermes AI Agent di VPS]
             │  (REST API dengan JWT Token)
             ▼
-[FastAPI Backend - http://127.0.0.1:8000]
+[FastAPI Backend - http://127.0.0.1:8001]
    ├── POST /api/auth/login
    ├── POST /api/expenses/upload
    ├── POST /api/expenses/{id}/confirm
@@ -154,7 +154,7 @@ Anda dapat mengintegrasikan **Hermes AI Agent** (atau bot otonom lainnya) yang b
    - **Role**: `user`
 4. Login sekali ke web dengan akun tersebut atau jalankan perintah seed kategori default:
    ```bash
-   curl -X POST http://127.0.0.1:8000/api/categories/seed-defaults \
+   curl -X POST http://127.0.0.1:8001/api/categories/seed-defaults \
      -H "Authorization: Bearer <TOKEN_AGENT>"
    ```
 
@@ -165,7 +165,7 @@ Anda dapat mengintegrasikan **Hermes AI Agent** (atau bot otonom lainnya) yang b
 #### A. Otentikasi (Mendapatkan Token JWT)
 Setiap kali agent menyala atau token kedaluwarsa (setiap 24 jam), agent melakukan login:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/auth/login \
+curl -X POST http://127.0.0.1:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "hermes_agent", "password": "BuatPasswordKuat123!"}'
 ```
@@ -188,7 +188,7 @@ Saat pengguna mengirimkan foto struk/nota di chat Telegram:
 1. Agent mengunduh file foto dari Telegram.
 2. Agent mengirimkan file ke backend Simple Cashflow:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/expenses/upload \
+curl -X POST http://127.0.0.1:8001/api/expenses/upload \
   -H "Authorization: Bearer <TOKEN>" \
   -F "file=@struk_belanja.jpg"
 ```
@@ -213,7 +213,7 @@ Agent kemudian merangkum hasil ini ke pengguna di Telegram:
 #### C. Konfirmasi Transaksi (Approval)
 Jika pengguna membalas *"Ya"*, *"Catat"*, atau *"Oke"*:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/expenses/14/confirm \
+curl -X POST http://127.0.0.1:8001/api/expenses/14/confirm \
   -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -228,14 +228,14 @@ curl -X POST http://127.0.0.1:8000/api/expenses/14/confirm \
 ```
 Atau jika ingin menyetujui semua draft struk yang pending sekaligus:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/expenses/drafts/approve-all \
+curl -X POST http://127.0.0.1:8001/api/expenses/drafts/approve-all \
   -H "Authorization: Bearer <TOKEN>"
 ```
 
 #### D. Menanyakan Saldo & Laporan Kas
 Jika pengguna di Telegram bertanya: *"Berapa pengeluaran saya bulan ini?"*:
 ```bash
-curl -X GET "http://127.0.0.1:8000/api/reports/summary?date_from=2026-11-01&date_to=2026-11-30" \
+curl -X GET "http://127.0.0.1:8001/api/reports/summary?date_from=2026-11-01&date_to=2026-11-30" \
   -H "Authorization: Bearer <TOKEN>"
 ```
 **Respons**:
@@ -266,7 +266,7 @@ import os
 import requests
 
 class SimpleCashflowClient:
-    def __init__(self, base_url="http://127.0.0.1:8000", username="hermes_agent", password="BuatPasswordKuat123!"):
+    def __init__(self, base_url="http://127.0.0.1:8001", username="hermes_agent", password="BuatPasswordKuat123!"):
         self.base_url = base_url.rstrip("/")
         self.username = username
         self.password = password

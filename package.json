@@ -8,7 +8,7 @@
     "setup:be": "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
     "setup:fe": "npm --prefix frontend install",
     "dev": "concurrently -n BE,FE -c blue,green \"npm:dev:be\" \"npm:dev:fe\"",
-    "dev:be": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "dev:be": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8001",
     "dev:fe": "npm --prefix frontend run dev"
   },
   "devDependencies": {
