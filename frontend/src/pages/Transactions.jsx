@@ -8,7 +8,6 @@ import {
   Filter,
   Loader2,
   Paperclip,
-  Pencil,
   Search,
   Trash2,
   X,
@@ -92,9 +91,9 @@ export default function Transactions() {
     }
   };
 
-  // Inline Edit Pihak / Keterangan
+  // Inline Edit Pihak / Keterangan / Kategori
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ party: "", description: "" });
+  const [editForm, setEditForm] = useState({ party: "", description: "", category_id: "" });
   const [savingEdit, setSavingEdit] = useState(false);
 
   const startEdit = (trx) => {
@@ -102,12 +101,13 @@ export default function Transactions() {
     setEditForm({
       party: trx.party || "",
       description: trx.description || "",
+      category_id: trx.category_id || "",
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditForm({ party: "", description: "" });
+    setEditForm({ party: "", description: "", category_id: "" });
   };
 
   const handleSaveEdit = async (id) => {
@@ -116,20 +116,32 @@ export default function Transactions() {
       addToast("Nama Pihak / Toko tidak boleh kosong", "error");
       return;
     }
+    const cleanCategoryId = editForm.category_id ? Number(editForm.category_id) : null;
+    if (!cleanCategoryId) {
+      addToast("Silakan pilih kategori", "error");
+      return;
+    }
     setSavingEdit(true);
     try {
       const updated = await transactionsApi.update(id, {
         party: cleanParty,
         description: String(editForm.description || "").trim() || null,
+        category_id: cleanCategoryId,
       });
       setTransactions((prev) =>
         prev.map((t) =>
           t.id === id
-            ? { ...t, party: updated.party, description: updated.description }
+            ? {
+                ...t,
+                party: updated.party,
+                description: updated.description,
+                category_id: updated.category_id,
+                category_name: updated.category_name,
+              }
             : t
         )
       );
-      addToast("Pihak & keterangan berhasil diperbarui");
+      addToast("Data transaksi berhasil diperbarui");
       setEditingId(null);
     } catch (err) {
       addToast(err.message || "Gagal memperbarui transaksi", "error");
@@ -399,18 +411,52 @@ export default function Transactions() {
                               startEdit(trx);
                             }}
                             title="Ubah Pihak / Keterangan"
-                            className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition shrink-0"
+                            className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 px-2 py-0.5 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition shrink-0"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            Edit
                           </button>
                         </div>
                       )}
                     </td>
 
                     <td className="py-4 px-6 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 capitalize">
-                        {trx.category_name || "Lainnya"}
-                      </span>
+                      {editingId === trx.id ? (
+                        <div className="py-1 min-w-[150px]">
+                          <label className="block text-2xs font-semibold text-slate-500 mb-0.5">
+                            Kategori ({trx.type === "income" ? "Pemasukan" : "Pengeluaran"})
+                          </label>
+                          <select
+                            value={editForm.category_id}
+                            onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveEdit(trx.id);
+                              if (e.key === "Escape") cancelEdit();
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 outline-none bg-white shadow-xs capitalize"
+                          >
+                            <option value="">-- Pilih Kategori --</option>
+                            {categories
+                              .filter((c) => c.type === trx.type && c.is_active)
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(trx);
+                          }}
+                          title="Klik untuk ubah kategori"
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 capitalize cursor-pointer transition text-left"
+                        >
+                          <span>{trx.category_name || "Lainnya"}</span>
+                        </button>
+                      )}
                     </td>
 
                     <td className="py-4 px-6 whitespace-nowrap">
@@ -454,13 +500,22 @@ export default function Transactions() {
                     </td>
 
                     <td className="py-4 px-6 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleDelete(trx.id)}
-                        title="Hapus Transaksi"
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => startEdit(trx)}
+                          title="Edit Transaksi (Pihak, Keterangan, Kategori)"
+                          className="px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(trx.id)}
+                          title="Hapus Transaksi"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -134,6 +134,7 @@ INSERT IGNORE INTO `categories` (`user_id`, `name`, `type`, `is_active`) VALUES
 (1, 'kesehatan', 'expense', 1),
 (1, 'hiburan', 'expense', 1),
 (1, 'pendidikan', 'expense', 1),
+(1, 'Sedekah', 'expense', 1),
 (1, 'lainnya', 'expense', 1);
 
 -- 4.3 Kategori Default Global (Pemasukan)

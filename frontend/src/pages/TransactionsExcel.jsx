@@ -8,7 +8,6 @@ import {
   FileSpreadsheet,
   Loader2,
   Lock,
-  Pencil,
   RefreshCw,
   TrendingDown,
   TrendingUp,
@@ -20,7 +19,7 @@ import "handsontable/styles/handsontable.min.css";
 import "handsontable/styles/ht-theme-main.min.css";
 import "handsontable/styles/ht-icons-main.min.css";
 
-import { formatRupiah, transactionsApi } from "../api/client";
+import { categoriesApi, formatRupiah, transactionsApi } from "../api/client";
 import { useToast } from "../components/Toast";
 
 // Daftarkan semua modul Handsontable (Filter, Dropdown, Sorting, Export, dll)
@@ -47,6 +46,7 @@ export default function TransactionsExcel() {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   const [rawTransactions, setRawTransactions] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingState, setSavingState] = useState("idle"); // 'idle' | 'saving' | 'saved' | 'error'
 
@@ -67,6 +67,8 @@ export default function TransactionsExcel() {
   const containerRef = useRef(null);
   const hotInstanceRef = useRef(null);
   const dataRef = useRef([]);
+  const categoriesRef = useRef([]);
+  categoriesRef.current = categories;
   const lastSavedRef = useRef({ trxId: null, prop: null, value: null, time: 0 });
 
   // Hitung rentang tanggal YYYY-MM-01 s/d akhir bulan
@@ -79,17 +81,21 @@ export default function TransactionsExcel() {
     return { dateFrom: start, dateTo: end };
   }, [selectedMonth, selectedYear]);
 
-  // Load data transaksi dari backend
+  // Load data transaksi dan kategori dari backend
   const loadMonthData = async () => {
     setLoading(true);
     try {
-      const list = await transactionsApi.list({
-        date_from: dateFrom,
-        date_to: dateTo,
-      });
+      const [list, catList] = await Promise.all([
+        transactionsApi.list({
+          date_from: dateFrom,
+          date_to: dateTo,
+        }),
+        categoriesApi.list(),
+      ]);
       setRawTransactions(list || []);
+      setCategories(catList || []);
     } catch (err) {
-      addToast(err.message || "Gagal memuat transaksi", "error");
+      addToast(err.message || "Gagal memuat data transaksi & kategori", "error");
     } finally {
       setLoading(false);
     }
@@ -187,6 +193,11 @@ export default function TransactionsExcel() {
       return false;
     }
 
+    if (prop === "category_name" && !cleanVal) {
+      addToast("Kategori tidak boleh kosong", "error");
+      return false;
+    }
+
     // Cegah duplikasi panggilan simpan dan double toast (< 1.5 detik)
     const now = Date.now();
     if (
@@ -201,12 +212,50 @@ export default function TransactionsExcel() {
 
     setSavingState("saving");
     try {
-      const payload = {
-        [prop]: cleanVal || (prop === "description" ? null : ""),
-      };
-      await transactionsApi.update(trxId, payload);
+      let payload = {};
+
+      if (prop === "category_name") {
+        const trx = (rawTransactions || []).find((t) => t.id === trxId);
+        const trxType = trx?.type || "expense";
+        const matchedCat = (categoriesRef.current || []).find(
+          (c) => c.type === trxType && c.name.trim().toLowerCase() === cleanVal.toLowerCase()
+        );
+        if (!matchedCat) {
+          addToast(
+            `Kategori "${cleanVal}" tidak valid untuk ${trxType === "income" ? "pemasukan" : "pengeluaran"}`,
+            "error"
+          );
+          setSavingState("error");
+          return false;
+        }
+        payload = { category_id: matchedCat.id };
+      } else {
+        payload = {
+          [prop]: cleanVal || (prop === "description" ? null : ""),
+        };
+      }
+
+      const updated = await transactionsApi.update(trxId, payload);
       setSavingState("saved");
-      addToast(`Tersimpan: ${prop === "party" ? "Pihak" : "Keterangan"} berhasil diperbarui!`);
+
+      // Update state rawTransactions lokal
+      setRawTransactions((prev) =>
+        prev.map((t) =>
+          t.id === trxId
+            ? {
+                ...t,
+                party: updated.party,
+                description: updated.description,
+                category_id: updated.category_id,
+                category_name: updated.category_name,
+              }
+            : t
+        )
+      );
+
+      const label =
+        prop === "party" ? "Pihak" : prop === "description" ? "Keterangan" : "Kategori";
+      addToast(`Tersimpan: ${label} berhasil diperbarui!`);
       setTimeout(() => setSavingState("idle"), 2500);
       return true;
     } catch (err) {
@@ -263,9 +312,10 @@ export default function TransactionsExcel() {
       },
       {
         data: "category_name",
-        readOnly: true,
-        width: 135,
-        className: "htCenter htMiddle text-xs text-slate-700 font-medium",
+        type: "dropdown",
+        readOnly: false, // BISA DIEDIT LANGSUNG
+        width: 150,
+        className: "htCenter htMiddle text-xs text-slate-800 font-semibold bg-emerald-50/20",
       },
       {
         data: "amount_formatted",
@@ -297,8 +347,8 @@ export default function TransactionsExcel() {
       "ID",
       "Tanggal",
       "Tipe",
-      "Pihak (Vendor / Sumber) ✏️",
-      "Keterangan ✏️",
+      "Pihak (Vendor / Sumber)",
+      "Keterangan",
       "Kategori",
       "Nominal (Rp)",
       "Valuta",
@@ -324,12 +374,22 @@ export default function TransactionsExcel() {
       licenseKey: "non-commercial-and-evaluation",
       className: "ht-theme-main",
 
-      // Hak akses sel: hanya 'party' dan 'description' yang editable
+      // Hak akses sel: party, description, dan category_name yang editable
       cells: function (row, col, prop) {
         const cellProperties = {};
         if (prop === "party" || prop === "description") {
           cellProperties.readOnly = false;
           cellProperties.editor = "text";
+        } else if (prop === "category_name") {
+          cellProperties.readOnly = false;
+          cellProperties.type = "dropdown";
+          const physicalRow = this.instance.toPhysicalRow(row);
+          const rowData = dataRef.current[physicalRow] || this.instance.getSourceDataAtRow(physicalRow);
+          const trxType = rowData?.type || "expense";
+          const activeCats = (categoriesRef.current || [])
+            .filter((c) => c.type === trxType && c.is_active)
+            .map((c) => c.name);
+          cellProperties.source = activeCats.length > 0 ? activeCats : ["Lainnya"];
         } else {
           cellProperties.readOnly = true;
           cellProperties.editor = false;
@@ -358,7 +418,7 @@ export default function TransactionsExcel() {
           const coord = `${colLetters[col] || "A"}${row + 1}`;
           const prop = propNames[col] || "";
           const val = hot.getDataAtCell(row, col);
-          const isEditable = col === 3 || col === 4;
+          const isEditable = col === 3 || col === 4 || col === 5;
 
           const physicalRow = hot.toPhysicalRow(row);
           const rowData = dataRef.current[physicalRow] || hot.getSourceDataAtRow(physicalRow);
@@ -411,7 +471,7 @@ export default function TransactionsExcel() {
         hotInstanceRef.current = null;
       }
     };
-  }, [tableData, loading]);
+  }, [tableData, categories, loading]);
 
   // Handler simpan dari Formula Bar di atas
   const handleSaveFromFormulaBar = async (e) => {
@@ -482,7 +542,7 @@ export default function TransactionsExcel() {
             </h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Spreadsheet Handsontable tanpa paginasi dengan filter kolom & inline editing kolom Pihak & Keterangan
+            Spreadsheet Handsontable tanpa paginasi dengan filter kolom & inline editing kolom Pihak, Keterangan & Kategori
           </p>
         </div>
 
@@ -662,8 +722,8 @@ export default function TransactionsExcel() {
         {/* Editability Indicator & Auto-Save Status */}
         <div className="flex items-center gap-2 shrink-0">
           {activeCellInfo.isEditable ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-2xs font-semibold">
-              <Pencil className="w-3 h-3 text-emerald-600" />
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-2xs font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span>Dapat Diedit</span>
             </span>
           ) : (
@@ -749,7 +809,7 @@ export default function TransactionsExcel() {
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 font-medium">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
-            Kolom <strong className="text-slate-800">Pihak</strong> & <strong className="text-slate-800">Keterangan</strong> dapat diedit (Dobel klik atau tekan Enter untuk mengedit)
+            Kolom <strong className="text-slate-800">Pihak</strong>, <strong className="text-slate-800">Keterangan</strong> & <strong className="text-slate-800">Kategori</strong> dapat diedit (Dobel klik, pilih dropdown, atau tekan Enter untuk mengedit)
           </span>
           <span className="flex items-center gap-1.5 text-slate-400">
             <Lock className="w-3 h-3" />
